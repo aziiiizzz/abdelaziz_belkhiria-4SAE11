@@ -20,5 +20,29 @@ pipeline {
                 sh 'mvn clean compile'
             }
         }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t azizashe/spring-app:1.0.0 .'
+            }
+        }
+
+        stage('Login to DockerHub') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-cred',
+                    usernameVariable: 'USERNAME',
+                    passwordVariable: 'PASSWORD'
+                )]) {
+                    sh 'echo $PASSWORD | docker login -u $USERNAME --password-stdin'
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                sh 'docker push azizashe/spring-app:1.0.0'
+            }
+        }
     }
 }
