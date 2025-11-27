@@ -24,7 +24,7 @@ pipeline {
             steps {
                 echo 'Construction et envoi de l\'image Docker...'
                 withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-cred',
+                    credentialsId: 'docker-hub-credentials',
                     usernameVariable: 'USERNAME',
                     passwordVariable: 'PASSWORD'
                 )]) {
