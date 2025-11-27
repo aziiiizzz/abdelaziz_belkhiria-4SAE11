@@ -28,7 +28,7 @@ pipeline {
                     usernameVariable: 'USERNAME',
                     passwordVariable: 'PASSWORD'
                 )]) {
-                    sh "docker build -t $IMAGE_NAME ."
+                    sh 'docker build --no-cache -t azizashe/spring-app:1.0.0 .'
                     sh "echo \$PASSWORD | docker login -u \$USERNAME --password-stdin"
                     sh "docker push $IMAGE_NAME"
                 }
