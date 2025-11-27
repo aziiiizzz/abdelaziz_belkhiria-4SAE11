@@ -1,47 +1,37 @@
 pipeline {
     agent any
 
-    tools {
-        jdk 'JAVA_HOME'
-        maven 'M2_HOME'
+    environment {
+        IMAGE_NAME = "azizashe/spring-app:1.0.0"
     }
 
     stages {
-
-        stage('GIT') {
+        stage('Checkout') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/aziiiizzz/abdelaziz_belkhiria-4SAE11.git'
+                echo 'Récupération du code source...'
+                checkout scm
             }
         }
 
-        stage('Compile Stage') {
+        stage('Build') {
             steps {
-                sh 'mvn clean compile'
+                echo 'Compilation du projet...'
+                sh 'mvn clean package -DskipTests'
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Docker Build & Push') {
             steps {
-                sh 'docker build -t azizashe/spring-app:1.0.0 .'
-            }
-        }
-
-        stage('Login to DockerHub') {
-            steps {
+                echo 'Construction et envoi de l\'image Docker...'
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-cred',
                     usernameVariable: 'USERNAME',
                     passwordVariable: 'PASSWORD'
                 )]) {
-                    sh 'echo $PASSWORD | docker login -u $USERNAME --password-stdin'
+                    sh "docker build -t $IMAGE_NAME ."
+                    sh "echo \$PASSWORD | docker login -u \$USERNAME --password-stdin"
+                    sh "docker push $IMAGE_NAME"
                 }
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                sh 'docker push azizashe/spring-app:1.0.0'
             }
         }
     }
