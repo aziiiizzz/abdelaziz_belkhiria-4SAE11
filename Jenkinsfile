@@ -2,40 +2,41 @@ pipeline {
     agent any
 
     environment {
-        // J'utilise 'latest' pour que Kubernetes détecte toujours la nouvelle version
         IMAGE_NAME = "azizashe/spring-app:latest"
+        DOCKER_CRED_ID = "docker-hub-credentials" 
+        SONAR_TOKEN = "sqa_bc27afe4e67bf8821de0d95d5e9631271f0e12cf"
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkout Code') {
             steps {
                 echo '📥 Récupération du code source...'
-                checkout scm
+                git branch: 'main', url: 'https://github.com/aziiiizzz/abdelaziz_belkhiria-4SAE11.git'
             }
         }
 
         stage('Build Maven') {
             steps {
-                echo '🔨 Compilation du projet...'
+                echo '🔨 Compilation du JAR...'
                 sh 'mvn clean package -DskipTests'
             }
         }
 
-        stage('Docker Build & Push') {
+        /* 
+        stage('MVN SonarQube') {
             steps {
-                echo '🐳 Construction et envoi de l\'image Docker...'
-                withCredentials([usernamePassword(
-                    credentialsId: 'docker-hub-credentials',
-                    usernameVariable: 'USERNAME',
-                    passwordVariable: 'PASSWORD'
-                )]) {
-                    // Login
-                    sh 'echo $PASSWORD | docker login -u $USERNAME --password-stdin'
-                    
-                    // Build (avec le tag latest)
+                echo 'Analyse de la qualité du code...'
+                sh "mvn sonar:sonar -Dsonar.projectKey=student-management -Dsonar.host.url=http://localhost:9000 -Dsonar.login=$SONAR_TOKEN"
+            }
+        } 
+        */
+
+        stage('Build & Push Docker') {
+            steps {
+                echo '🐳 Construction et Push de l\'image Docker (Via Shell)...'
+                withCredentials([usernamePassword(credentialsId: DOCKER_CRED_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
                     sh "docker build --no-cache -t $IMAGE_NAME ."
-                    
-                    // Push
                     sh "docker push $IMAGE_NAME"
                 }
             }
@@ -43,18 +44,28 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                echo '🚀 Déploiement vers Kubernetes...'
+                echo '🚀 Déploiement sur K8s (Namespace: devops)...'
                 
-                // 1. Appliquer les configurations (MySQL + Spring)
-                // Le dossier k8s/ doit exister dans ton git
+                // 1. S'assurer que le namespace existe
+                sh 'kubectl create namespace devops --dry-run=client -o yaml | kubectl apply -f -'
+
+                // 2. Appliquer les fichiers YAML du dossier k8s
                 sh 'kubectl apply -f k8s/ -n devops'
-
-                // 2. Forcer le redémarrage pour télécharger la nouvelle image
+                
+                // 3. Redémarrer le déploiement pour forcer la mise à jour
                 sh 'kubectl rollout restart deployment/spring-deployment -n devops'
-
-                // J'AI ENLEVÉ LA LIGNE "rollout status" QUI FAISAIT ÉCHOUER TON BUILD PRÉCÉDENT
+                
                 echo "✅ Ordre de déploiement envoyé avec succès !"
             }
+        }
+    } // Fin des Stages
+
+    post {
+        success {
+            echo "✅ Pipeline RÉUSSI ! Application déployée."
+        }
+        failure {
+            echo "❌ ÉCHEC du pipeline. Vérifie les logs."
         }
     }
 }
