@@ -1,12 +1,10 @@
 pipeline {
     agent any
-
     environment {
         IMAGE_NAME = "azizashe/spring-app:latest"
         DOCKER_CRED_ID = "docker-hub-credentials" 
         SONAR_TOKEN = "sqa_bc27afe4e67bf8821de0d95d5e9631271f0e12cf"
     }
-
     stages {
         stage('Checkout Code') {
             steps {
@@ -14,23 +12,12 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/aziiiizzz/abdelaziz_belkhiria-4SAE11.git'
             }
         }
-
         stage('Build Maven') {
             steps {
                 echo '🔨 Compilation du JAR...'
                 sh 'mvn clean package -DskipTests'
             }
         }
-
-        /* 
-        stage('MVN SonarQube') {
-            steps {
-                echo 'Analyse de la qualité du code...'
-                sh "mvn sonar:sonar -Dsonar.projectKey=student-management -Dsonar.host.url=http://localhost:9000 -Dsonar.login=$SONAR_TOKEN"
-            }
-        } 
-        */
-
         stage('Build & Push Docker') {
             steps {
                 echo '🐳 Construction et Push de l\'image Docker (Via Shell)...'
@@ -45,20 +32,13 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 echo '🚀 Déploiement sur K8s (Namespace: devops)...'
-                
-                // 1. S'assurer que le namespace existe
                 sh 'kubectl create namespace devops --dry-run=client -o yaml | kubectl apply -f -'
-
-                // 2. Appliquer les fichiers YAML du dossier k8s
                 sh 'kubectl apply -f k8s/ -n devops'
-                
-                // 3. Redémarrer le déploiement pour forcer la mise à jour
-                sh 'kubectl rollout restart deployment/spring-deployment -n devops'
-                
+                sh 'kubectl rollout restart deployment/spring-deployment -n devops' 
                 echo "✅ Ordre de déploiement envoyé avec succès !"
             }
         }
-    } // Fin des Stages
+    } 
 
     post {
         success {
